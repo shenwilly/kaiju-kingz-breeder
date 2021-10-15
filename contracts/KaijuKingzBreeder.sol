@@ -62,6 +62,7 @@ contract KaijuKingzBreeder is Ownable, IERC721Receiver {
     }
 
     function withdrawETH(uint256 _amount) external onlyOwner {
+        // solhint-disable-next-line avoid-low-level-calls
         (bool success, ) = msg.sender.call{value: _amount}("");
         require(success, "ETH transfer failed");
     }
