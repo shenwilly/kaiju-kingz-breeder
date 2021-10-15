@@ -312,57 +312,115 @@ describe("KaijuKingzBreeder", function () {
     });
   });
 
-  describe("withdrawRWaste()", async () => {
-    beforeEach(async () => {
-      // TODO
-    });
-
-    it("should withdraw RWaste from contract", async () => {
-      // TODO
-    });
-  });
-
   describe("withdrawETH()", async () => {
     beforeEach(async () => {
-      // TODO
+      await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
+      await rwaste.connect(user).approve(kaijuBreeder.address, breedCost);
+      await kaijuBreeder.connect(user).breed(userKaijuId, {
+        value: breedFee,
+      });
     });
 
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        kaijuBreeder.connect(user).withdrawETH(1)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
     it("should withdraw ETH from contract", async () => {
-      // TODO
+      const balanceOwnerPre = await ethers.provider.getBalance(owner.address);
+      const balanceContractPre = await ethers.provider.getBalance(
+        kaijuBreeder.address
+      );
+      console.log(balanceContractPre.toString());
+
+      await kaijuBreeder.connect(owner).withdrawETH(balanceContractPre);
+
+      const balanceOwnerPost = await ethers.provider.getBalance(owner.address);
+      const balanceContractPost = await ethers.provider.getBalance(
+        kaijuBreeder.address
+      );
+
+      expect(balanceOwnerPost).to.be.gt(balanceOwnerPre); // TODO: precise diff
+      expect(balanceContractPost).to.be.eq(0);
     });
   });
 
   describe("syncRWaste()", async () => {
-    beforeEach(async () => {
-      // TODO
+    it("should revert if sender is not owner", async () => {
+      await expect(kaijuBreeder.connect(user).syncRWaste()).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
     });
-
+    it("should revert if rwaste is same", async () => {
+      await expect(kaijuBreeder.connect(owner).syncRWaste()).to.be.revertedWith(
+        "same"
+      );
+    });
     it("should update rwaste address", async () => {
-      // TODO
+      // TODO: modify rwaste from kaijukingz contract
     });
   });
 
   describe("updateFee()", async () => {
+    it("should revert if sender is not owner", async () => {
+      await expect(kaijuBreeder.connect(user).updateFee(0)).to.be.revertedWith(
+        "Ownable: caller is not the owner"
+      );
+    });
+    it("should revert if fee is same", async () => {
+      const fee = await kaijuBreeder.fee();
+      await expect(
+        kaijuBreeder.connect(owner).updateFee(fee)
+      ).to.be.revertedWith("same");
+    });
     it("should update fee", async () => {
-      // TODO
+      const fee = await kaijuBreeder.fee();
+      await kaijuBreeder.connect(owner).updateFee(fee.add(1));
+      expect(await kaijuBreeder.fee()).to.be.eq(fee.add(1));
     });
   });
 
   describe("updateWhitelist()", async () => {
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        kaijuBreeder.connect(user).updateWhitelist([], [])
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+    it("should revert if inputs length aren't equal", async () => {
+      await expect(
+        kaijuBreeder.connect(owner).updateWhitelist([owner.address], [])
+      ).to.be.revertedWith("invalid inputs");
+    });
     it("should update whitelist", async () => {
-      // TODO
+      expect(await kaijuBreeder.whitelist(owner.address)).to.be.eq(false);
+      await kaijuBreeder
+        .connect(owner)
+        .updateWhitelist([owner.address], [true]);
+      expect(await kaijuBreeder.whitelist(owner.address)).to.be.eq(true);
+
+      expect(await kaijuBreeder.whitelist(user.address)).to.be.eq(false);
+      await kaijuBreeder
+        .connect(owner)
+        .updateWhitelist([owner.address, user.address], [false, true]);
+      expect(await kaijuBreeder.whitelist(owner.address)).to.be.eq(false);
+      expect(await kaijuBreeder.whitelist(user.address)).to.be.eq(true);
     });
   });
 
   describe("getRWaste()", async () => {
     it("should return rwaste address", async () => {
-      // TODO
+      const rwasteAddress = await kaiju.RWaste();
+      expect(await kaijuBreeder.getRWaste()).to.be.eq(rwasteAddress);
     });
   });
 
   describe("getNextBabyId()", async () => {
     it("should return next babyId", async () => {
-      // TODO
+      const maxGenCount = await kaiju.maxGenCount();
+      const babyCount = await kaiju.babyCount();
+      expect(await kaijuBreeder.getNextBabyId()).to.be.eq(
+        maxGenCount.add(babyCount)
+      );
     });
   });
 });
