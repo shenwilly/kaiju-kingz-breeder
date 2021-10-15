@@ -237,4 +237,78 @@ describe("KaijuKingzBreeder", function () {
       expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
     });
   });
+
+  describe("depositBreeder()", async () => {
+    beforeEach(async () => {
+      // TODO
+    });
+
+    it("should deposit breeder kaiju", async () => {
+      // TODO
+    });
+  });
+
+  describe("withdrawBreeder()", async () => {
+    beforeEach(async () => {
+      // TODO
+    });
+
+    it("should withdraw breeder kaiju", async () => {
+      // TODO
+    });
+  });
+
+  describe("withdrawRWaste()", async () => {
+    beforeEach(async () => {
+      // TODO
+    });
+
+    it("should withdraw RWaste from contract", async () => {
+      // TODO
+    });
+  });
+
+  describe("withdrawETH()", async () => {
+    beforeEach(async () => {
+      // TODO
+    });
+
+    it("should withdraw ETH from contract", async () => {
+      // TODO
+    });
+  });
+
+  describe("syncRWaste()", async () => {
+    beforeEach(async () => {
+      // TODO
+    });
+
+    it("should update rwaste address", async () => {
+      // TODO
+    });
+  });
+
+  describe("updateFee()", async () => {
+    it("should update fee", async () => {
+      // TODO
+    });
+  });
+
+  describe("updateWhitelist()", async () => {
+    it("should update whitelist", async () => {
+      // TODO
+    });
+  });
+
+  describe("getRWaste()", async () => {
+    it("should return rwaste address", async () => {
+      // TODO
+    });
+  });
+
+  describe("getNextBabyId()", async () => {
+    it("should return next babyId", async () => {
+      // TODO
+    });
+  });
 });
