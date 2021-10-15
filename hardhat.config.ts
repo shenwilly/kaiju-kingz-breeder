@@ -10,7 +10,9 @@ import "solidity-coverage";
 
 import { HardhatUserConfig } from "hardhat/types";
 import {
+  CMC_API_KEY,
   ETHERSCAN_API_KEY,
+  KAIJUKINGZ_BLOCKNUMBER,
   MAINNET_PRIVATE_KEY,
   NETWORK_FORK_URL,
   NETWORK_MAINNET_URL,
@@ -27,7 +29,7 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.8.4",
+        version: "0.8.0",
         settings: {
           optimizer: {
             enabled: true,
@@ -43,7 +45,7 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true,
       forking: {
         url: NETWORK_FORK_URL,
-        blockNumber: 12984971,
+        blockNumber: KAIJUKINGZ_BLOCKNUMBER,
       },
       // hardfork: "berlin"
     },
@@ -66,10 +68,14 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: false,
     currency: "eth",
+    // coinmarketcap: CMC_API_KEY
   },
   typechain: {
     outDir: "typechain",
     target: "ethers-v5",
+  },
+  mocha: {
+    timeout: 0,
   },
 };
 

@@ -1,5 +1,6 @@
 export const INFURA_API_KEY = process.env.INFURA_API_KEY!;
 export const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY!;
+export const CMC_API_KEY = process.env.CMC_API_KEY!;
 
 // Network RPCs
 export const NETWORK_FORK_URL = `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_API_KEY}`;
