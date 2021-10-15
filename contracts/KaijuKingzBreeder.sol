@@ -15,6 +15,7 @@ contract KaijuKingzBreeder is Ownable, IERC721Receiver {
 
     uint256 public breederId;
     bool public hasBreeder;
+
     uint256 public fee;
     mapping(address => bool) public whitelist;
 
@@ -58,6 +59,11 @@ contract KaijuKingzBreeder is Ownable, IERC721Receiver {
     function withdrawRWaste() external onlyOwner {
         uint256 balance = IERC20(rwaste).balanceOf(msg.sender);
         IERC20(rwaste).safeTransfer(msg.sender, balance);
+    }
+
+    function withdrawETH(uint256 _amount) external onlyOwner {
+        (bool success, ) = msg.sender.call{value: _amount}("");
+        require(success, "ETH transfer failed");
     }
 
     function syncRWaste() external onlyOwner {
