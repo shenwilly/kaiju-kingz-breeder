@@ -240,21 +240,75 @@ describe("KaijuKingzBreeder", function () {
 
   describe("depositBreeder()", async () => {
     beforeEach(async () => {
-      // TODO
+      await kaijuBreeder.connect(owner).withdrawBreeder();
+      expect(await kaijuBreeder.hasBreeder()).to.be.eq(false);
+
+      await kaiju
+        .connect(owner)
+        .approve(ethers.constants.AddressZero, ownerKaijuId);
     });
 
+    it("should revert if didn't own _kaijuId", async () => {
+      await expect(
+        kaijuBreeder.connect(owner).depositBreeder(userKaijuId)
+      ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+    });
+    it("should revert if didn't allow _kaijuId", async () => {
+      await expect(
+        kaijuBreeder.connect(owner).depositBreeder(ownerKaijuId)
+      ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
+    });
+    it("should revert if breeder already deposited", async () => {
+      await kaiju.connect(owner).approve(kaijuBreeder.address, ownerKaijuId);
+      await kaijuBreeder.connect(owner).depositBreeder(ownerKaijuId);
+
+      await kaiju
+        .connect(user)
+        .safeTransferFrom(user.address, owner.address, userKaijuId, "0x");
+
+      await expect(
+        kaijuBreeder.connect(owner).depositBreeder(userKaijuId)
+      ).to.be.revertedWith("already has breeder");
+    });
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        kaijuBreeder.connect(user).depositBreeder(userKaijuId)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
     it("should deposit breeder kaiju", async () => {
-      // TODO
+      expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(0);
+      expect(await kaijuBreeder.hasBreeder()).to.be.eq(false);
+
+      await kaiju.connect(owner).approve(kaijuBreeder.address, ownerKaijuId);
+      await kaijuBreeder.connect(owner).depositBreeder(ownerKaijuId);
+
+      expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
+      expect(await kaijuBreeder.hasBreeder()).to.be.eq(true);
     });
   });
 
   describe("withdrawBreeder()", async () => {
-    beforeEach(async () => {
-      // TODO
+    it("should revert if no breeder", async () => {
+      await kaijuBreeder.connect(owner).withdrawBreeder();
+      await expect(
+        kaijuBreeder.connect(owner).withdrawBreeder()
+      ).to.be.revertedWith("no breeder");
     });
-
+    it("should revert if sender is not owner", async () => {
+      await expect(
+        kaijuBreeder.connect(user).withdrawBreeder()
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+    });
     it("should withdraw breeder kaiju", async () => {
-      // TODO
+      expect(await kaiju.balanceOf(owner.address)).to.be.eq(0);
+      expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
+      expect(await kaijuBreeder.hasBreeder()).to.be.eq(true);
+
+      await kaijuBreeder.connect(owner).withdrawBreeder();
+
+      expect(await kaiju.balanceOf(owner.address)).to.be.eq(1);
+      expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(0);
+      expect(await kaijuBreeder.hasBreeder()).to.be.eq(false);
     });
   });
 
