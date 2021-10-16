@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -32,14 +32,16 @@ contract KaijuKingzBreeder is Ownable, IERC721Receiver {
         fee = 0.1 ether;
     }
 
-    function breed(uint256 _kaijuId) external payable {
-        require(msg.value == fee, "not enough ETH");
-        _breed(_kaijuId);
+    function breed(uint256 _kaijuId, uint256 _amount) external payable {
+        require(_amount > 0, "0");
+        require(msg.value == fee * _amount, "wrong ETH amount");
+        _breed(_kaijuId, _amount);
     }
 
-    function breedFree(uint256 _kaijuId) external {
+    function breedFree(uint256 _kaijuId, uint256 _amount) external {
+        require(_amount > 0, "0");
         require(whitelist[msg.sender], "not in whitelist");
-        _breed(_kaijuId);
+        _breed(_kaijuId, _amount);
     }
 
     function depositBreeder(uint256 _tokenId) external onlyOwner {
@@ -92,23 +94,26 @@ contract KaijuKingzBreeder is Ownable, IERC721Receiver {
         return genesisCount + kaiju.babyCount();
     }
 
-    function _breed(uint256 _kaijuId) internal {
+    function _breed(uint256 _kaijuId, uint256 _amount) internal {
         require(hasBreeder, "no breeder");
+        assert(_amount > 0);
 
         kaiju.safeTransferFrom(msg.sender, address(this), _kaijuId, "");
+
         IERC20(rwaste).safeTransferFrom(
             msg.sender,
             address(this),
-            FUSION_PRICE
+            FUSION_PRICE * _amount
         );
 
-        uint256 babyId = getNextBabyId();
-        kaiju.fusion(breederId, _kaijuId);
+        for (uint256 i = 0; i < _amount; i++) {
+            uint256 babyId = getNextBabyId();
+            kaiju.fusion(breederId, _kaijuId);
+            kaiju.safeTransferFrom(address(this), msg.sender, babyId, "");
+            emit Breed(babyId);
+        }
 
         kaiju.safeTransferFrom(address(this), msg.sender, _kaijuId, "");
-        kaiju.safeTransferFrom(address(this), msg.sender, babyId, "");
-
-        emit Breed(babyId);
     }
 
     function onERC721Received(

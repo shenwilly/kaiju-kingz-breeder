@@ -76,10 +76,10 @@ describe("KaijuKingzBreeder", function () {
 
     // mint rwaste
     const now = await getCurrentTimestamp();
-    await fastForwardTo(now.add(12960000).toNumber());
+    await fastForwardTo(now.add(25920000).toNumber());
     await rwaste.connect(user).claimReward();
     const balance = await rwaste.balanceOf(user.address);
-    expect(balance).to.be.gte(breedCost);
+    expect(balance).to.be.gte(breedCost.mul(2));
 
     snapshotId = await ethers.provider.send("evm_snapshot", []);
   });
@@ -92,24 +92,25 @@ describe("KaijuKingzBreeder", function () {
   describe("breed()", async () => {
     it("should revert if user didn't own _kaijuId", async () => {
       await expect(
-        kaijuBreeder.connect(user).breed(0, {
+        kaijuBreeder.connect(user).breed(0, 1, {
           value: breedFee,
         })
       ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
     });
     it("should revert if user haven't approved _kaijuId", async () => {
       await expect(
-        kaijuBreeder.connect(user).breed(userKaijuId, {
+        kaijuBreeder.connect(user).breed(userKaijuId, 1, {
           value: breedFee,
         })
       ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
     });
     it("should revert if user don't have enough rwaste", async () => {
       await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
-      await rwaste.connect(user).approve(kaijuBreeder.address, breedCost);
-      await rwaste.connect(user).transfer(owner.address, breedCost);
+      const balance = await rwaste.balanceOf(user.address);
+      await rwaste.connect(user).approve(kaijuBreeder.address, balance);
+      await rwaste.connect(user).transfer(owner.address, balance);
       await expect(
-        kaijuBreeder.connect(user).breed(userKaijuId, {
+        kaijuBreeder.connect(user).breed(userKaijuId, 1, {
           value: breedFee,
         })
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
@@ -117,7 +118,7 @@ describe("KaijuKingzBreeder", function () {
     it("should revert if user haven't allowed enough rwaste", async () => {
       await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
       await expect(
-        kaijuBreeder.connect(user).breed(userKaijuId, {
+        kaijuBreeder.connect(user).breed(userKaijuId, 1, {
           value: breedFee,
         })
       ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
@@ -125,17 +126,24 @@ describe("KaijuKingzBreeder", function () {
     it("should revert if no breeder available", async () => {
       await kaijuBreeder.connect(owner).withdrawBreeder();
       await expect(
-        kaijuBreeder.connect(user).breed(userKaijuId, {
+        kaijuBreeder.connect(user).breed(userKaijuId, 1, {
           value: breedFee,
         })
       ).to.be.revertedWith("no breeder");
     });
     it("should revert if msg.value != fee", async () => {
       await expect(
-        kaijuBreeder.connect(user).breed(userKaijuId, {
-          value: breedFee.sub(1),
+        kaijuBreeder.connect(user).breed(userKaijuId, 1, {
+          value: breedFee.add(1),
         })
-      ).to.be.revertedWith("not enough ETH");
+      ).to.be.revertedWith("wrong ETH amount");
+    });
+    it("should revert if amount is 0", async () => {
+      await expect(
+        kaijuBreeder.connect(user).breed(userKaijuId, 0, {
+          value: breedFee.add(1),
+        })
+      ).to.be.revertedWith("0");
     });
     it("should breed and send the new kaiju", async () => {
       const babyId = await kaijuBreeder.getNextBabyId();
@@ -149,7 +157,7 @@ describe("KaijuKingzBreeder", function () {
         kaijuBreeder.address
       );
 
-      const tx = await kaijuBreeder.connect(user).breed(userKaijuId, {
+      const tx = await kaijuBreeder.connect(user).breed(userKaijuId, 1, {
         value: breedFee,
       });
       expect(tx).to.emit(kaijuBreeder, "Breed").withArgs(babyId);
@@ -165,6 +173,45 @@ describe("KaijuKingzBreeder", function () {
       expect(contractBalancePost.sub(contractBalancePre)).to.be.eq(breedFee);
       expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
     });
+    it("should breed multiple", async () => {
+      const babyId = await kaijuBreeder.getNextBabyId();
+      const breedAmount = 2;
+
+      await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
+      await rwaste
+        .connect(user)
+        .approve(kaijuBreeder.address, breedCost.mul(2));
+
+      const kaijuBalancePre = await kaiju.balanceOf(user.address);
+      const rwasteBalancePre = await rwaste.balanceOf(user.address);
+      const contractBalancePre = await ethers.provider.getBalance(
+        kaijuBreeder.address
+      );
+
+      const tx = await kaijuBreeder
+        .connect(user)
+        .breed(userKaijuId, breedAmount, {
+          value: breedFee.mul(breedAmount),
+        });
+      for (let i = 0; i < breedAmount; i++) {
+        expect(tx).to.emit(kaijuBreeder, "Breed").withArgs(babyId.add(i));
+      }
+
+      const kaijuBalancePost = await kaiju.balanceOf(user.address);
+      const rwasteBalancePost = await rwaste.balanceOf(user.address);
+      const contractBalancePost = await ethers.provider.getBalance(
+        kaijuBreeder.address
+      );
+
+      expect(kaijuBalancePost).to.be.eq(kaijuBalancePre.add(breedAmount));
+      expect(rwasteBalancePost).to.be.eq(
+        rwasteBalancePre.sub(breedCost.mul(breedAmount))
+      );
+      expect(contractBalancePost.sub(contractBalancePre)).to.be.eq(
+        breedFee.mul(breedAmount)
+      );
+      expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
+    });
   });
 
   describe("breedFree()", async () => {
@@ -173,33 +220,34 @@ describe("KaijuKingzBreeder", function () {
     });
 
     it("should revert if user didn't own _kaijuId", async () => {
-      await expect(kaijuBreeder.connect(user).breedFree(0)).to.be.revertedWith(
-        "ERC721: transfer caller is not owner nor approved"
-      );
+      await expect(
+        kaijuBreeder.connect(user).breedFree(0, 1)
+      ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
     });
     it("should revert if user haven't approved _kaijuId", async () => {
       await expect(
-        kaijuBreeder.connect(user).breedFree(userKaijuId)
+        kaijuBreeder.connect(user).breedFree(userKaijuId, 1)
       ).to.be.revertedWith("ERC721: transfer caller is not owner nor approved");
     });
     it("should revert if user don't have enough rwaste", async () => {
       await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
+      const balance = await rwaste.balanceOf(user.address);
       await rwaste.connect(user).approve(kaijuBreeder.address, breedCost);
-      await rwaste.connect(user).transfer(owner.address, breedCost);
+      await rwaste.connect(user).transfer(owner.address, balance);
       await expect(
-        kaijuBreeder.connect(user).breedFree(userKaijuId)
+        kaijuBreeder.connect(user).breedFree(userKaijuId, 1)
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
     });
     it("should revert if user haven't allowed enough rwaste", async () => {
       await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
       await expect(
-        kaijuBreeder.connect(user).breedFree(userKaijuId)
+        kaijuBreeder.connect(user).breedFree(userKaijuId, 1)
       ).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
     });
     it("should revert if no breeder available", async () => {
       await kaijuBreeder.connect(owner).withdrawBreeder();
       await expect(
-        kaijuBreeder.connect(user).breedFree(userKaijuId)
+        kaijuBreeder.connect(user).breedFree(userKaijuId, 1)
       ).to.be.revertedWith("no breeder");
     });
     it("should revert if user not in whitelist", async () => {
@@ -207,8 +255,13 @@ describe("KaijuKingzBreeder", function () {
         .connect(owner)
         .updateWhitelist([user.address], [false]);
       await expect(
-        kaijuBreeder.connect(user).breedFree(userKaijuId)
+        kaijuBreeder.connect(user).breedFree(userKaijuId, 1)
       ).to.be.revertedWith("not in whitelist");
+    });
+    it("should revert if amount is 0", async () => {
+      await expect(
+        kaijuBreeder.connect(user).breedFree(userKaijuId, 0)
+      ).to.be.revertedWith("0");
     });
     it("should breed and send the new kaiju", async () => {
       const babyId = await kaijuBreeder.getNextBabyId();
@@ -222,7 +275,7 @@ describe("KaijuKingzBreeder", function () {
         kaijuBreeder.address
       );
 
-      const tx = await kaijuBreeder.connect(user).breedFree(userKaijuId);
+      const tx = await kaijuBreeder.connect(user).breedFree(userKaijuId, 1);
       expect(tx).to.emit(kaijuBreeder, "Breed").withArgs(babyId);
 
       const kaijuBalancePost = await kaiju.balanceOf(user.address);
@@ -233,6 +286,42 @@ describe("KaijuKingzBreeder", function () {
 
       expect(kaijuBalancePost).to.be.eq(kaijuBalancePre.add(1));
       expect(rwasteBalancePost).to.be.eq(rwasteBalancePre.sub(breedCost));
+      expect(contractBalancePost.sub(contractBalancePre)).to.be.eq(0);
+      expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
+    });
+    it("should breed multiple", async () => {
+      const babyId = await kaijuBreeder.getNextBabyId();
+      const breedAmount = 2;
+
+      await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
+      await rwaste
+        .connect(user)
+        .approve(kaijuBreeder.address, breedCost.mul(breedAmount));
+
+      const kaijuBalancePre = await kaiju.balanceOf(user.address);
+      const rwasteBalancePre = await rwaste.balanceOf(user.address);
+      const contractBalancePre = await ethers.provider.getBalance(
+        kaijuBreeder.address
+      );
+      expect(rwasteBalancePre).to.be.gte(breedCost.mul(breedAmount));
+
+      const tx = await kaijuBreeder
+        .connect(user)
+        .breedFree(userKaijuId, breedAmount);
+      for (let i = 0; i < breedAmount; i++) {
+        expect(tx).to.emit(kaijuBreeder, "Breed").withArgs(babyId.add(i));
+      }
+
+      const kaijuBalancePost = await kaiju.balanceOf(user.address);
+      const rwasteBalancePost = await rwaste.balanceOf(user.address);
+      const contractBalancePost = await ethers.provider.getBalance(
+        kaijuBreeder.address
+      );
+
+      expect(kaijuBalancePost).to.be.eq(kaijuBalancePre.add(breedAmount));
+      expect(rwasteBalancePost).to.be.eq(
+        rwasteBalancePre.sub(breedCost.mul(breedAmount))
+      );
       expect(contractBalancePost.sub(contractBalancePre)).to.be.eq(0);
       expect(await kaiju.balanceOf(kaijuBreeder.address)).to.be.eq(1);
     });
@@ -316,7 +405,7 @@ describe("KaijuKingzBreeder", function () {
     beforeEach(async () => {
       await kaiju.connect(user).approve(kaijuBreeder.address, userKaijuId);
       await rwaste.connect(user).approve(kaijuBreeder.address, breedCost);
-      await kaijuBreeder.connect(user).breed(userKaijuId, {
+      await kaijuBreeder.connect(user).breed(userKaijuId, 1, {
         value: breedFee,
       });
     });
@@ -331,7 +420,6 @@ describe("KaijuKingzBreeder", function () {
       const balanceContractPre = await ethers.provider.getBalance(
         kaijuBreeder.address
       );
-      console.log(balanceContractPre.toString());
 
       await kaijuBreeder.connect(owner).withdrawETH(balanceContractPre);
 
